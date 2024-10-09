@@ -14,6 +14,9 @@ func main() {
 	tokenizer := compiler.NewTokenizer(string(buf))
 	tokens := tokenizer.Tokenize()
 	fmt.Println(toString(tokens))
+
+	parser := compiler.NewParser(tokens)
+	parser.Parse()
 }
 
 func toString(tokens []compiler.Token) string {
