@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 type DefNode struct {
@@ -13,15 +15,24 @@ type DefNode struct {
 	Body     BodyNode
 }
 
+type BodyNode interface {
+	isBodyNode()
+}
+
 type BodyInt int
 
-func (body BodyInt) Value() string {
-	return fmt.Sprint(body)
+func (body BodyInt) isBodyNode() {}
+
+type BodyFnCall struct {
+	Name     string
+	ArgExprs []BodyNode
 }
 
-type BodyNode interface {
-	Value() string
-}
+func (body BodyFnCall) isBodyNode() {}
+
+type BodyVarRef string
+
+func (BodyVarRef) isBodyNode() {}
 
 type Tokenizer struct {
 	code string
@@ -133,18 +144,9 @@ func (parser *Parser) parseDef() DefNode {
 		Body:     body,
 	}
 
-	fmt.Println(defNode)
+	spew.Dump(defNode)
 
 	return defNode
-}
-
-func valuesFromTokens(tokens []Token) []string {
-	vals := make([]string, len(tokens))
-	for i, tok := range tokens {
-		vals[i] = tok.Value
-	}
-
-	return vals
 }
 
 func (parser *Parser) consume(tokenType TokenType) Token {
@@ -176,12 +178,56 @@ func (parser *Parser) peek(tokenType TokenType) bool {
 	return parser.tokens[0].Type == tokenType
 }
 
+func (parser *Parser) peekOffset(tokenType TokenType, offset int) bool {
+	if offset >= len(parser.tokens) {
+		return false
+	}
+	return parser.tokens[offset].Type == tokenType
+}
+
 func (parser *Parser) parseExpr() BodyNode {
-	return parser.parseInt()
+	if parser.peek(INTEGER) {
+		return parser.parseInt()
+	}
+	if parser.peek(IDENTIFIER) && parser.peekOffset(OPAREN, 1) {
+		return parser.parseCall()
+	}
+
+	return parser.parseVarRef()
 }
 
 func (paser *Parser) parseInt() BodyInt {
 	tok := paser.consume(INTEGER)
 	val, _ := strconv.ParseInt(tok.Value, 10, 0)
 	return BodyInt(val)
+}
+
+func (parser *Parser) parseCall() BodyFnCall {
+	name := parser.consume(IDENTIFIER)
+	argExprs := parser.parseArgExprs()
+	return BodyFnCall{
+		Name:     name.Value,
+		ArgExprs: argExprs,
+	}
+}
+
+func (parser *Parser) parseArgExprs() []BodyNode {
+	argExprs := []BodyNode{}
+	parser.consume(OPAREN)
+
+	if !parser.peek(CPAREN) {
+		argExprs = append(argExprs, parser.parseExpr())
+		for parser.peek(COMMA) {
+			parser.consume(COMMA)
+			argExprs = append(argExprs, parser.parseExpr())
+		}
+	}
+
+	parser.consume(CPAREN)
+
+	return argExprs
+}
+
+func (parser *Parser) parseVarRef() BodyVarRef {
+	return BodyVarRef(parser.consume(IDENTIFIER).Value)
 }

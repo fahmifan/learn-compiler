@@ -13,7 +13,7 @@ func main() {
 
 	tokenizer := compiler.NewTokenizer(string(buf))
 	tokens := tokenizer.Tokenize()
-	fmt.Println(toString(tokens))
+	fmt.Println(toString(tokens), "\n")
 
 	parser := compiler.NewParser(tokens)
 	parser.Parse()
