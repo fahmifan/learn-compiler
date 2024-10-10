@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"learncompiler/compiler"
 	"os"
-	"strings"
 )
 
 func main() {
@@ -13,19 +12,11 @@ func main() {
 
 	tokenizer := compiler.NewTokenizer(string(buf))
 	tokens := tokenizer.Tokenize()
-	fmt.Println(toString(tokens), "\n")
 
 	parser := compiler.NewParser(tokens)
-	parser.Parse()
-}
+	node := parser.Parse()
 
-func toString(tokens []compiler.Token) string {
-	ss := make([]string, len(tokens))
-	for i, tok := range tokens {
-		ss[i] = tok.Value + "__" + string(tok.Type)
-	}
-
-	return strings.Join(ss, ",")
+	fmt.Println(compiler.GenerateCode(node))
 }
 
 func noError(err error) {

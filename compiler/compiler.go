@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -9,30 +10,32 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+type Node interface {
+	isNode()
+}
+
 type DefNode struct {
 	Name     string
 	ArgNames []string
-	Body     BodyNode
+	Body     Node
 }
 
-type BodyNode interface {
-	isBodyNode()
-}
+func (DefNode) isNode() {}
 
 type BodyInt int
 
-func (body BodyInt) isBodyNode() {}
+func (body BodyInt) isNode() {}
 
 type BodyFnCall struct {
 	Name     string
-	ArgExprs []BodyNode
+	ArgExprs []Node
 }
 
-func (body BodyFnCall) isBodyNode() {}
+func (body BodyFnCall) isNode() {}
 
 type BodyVarRef string
 
-func (BodyVarRef) isBodyNode() {}
+func (BodyVarRef) isNode() {}
 
 type Tokenizer struct {
 	code string
@@ -127,8 +130,8 @@ func NewParser(tokens []Token) Parser {
 	return Parser{tokens: tokens}
 }
 
-func (parser *Parser) Parse() {
-	parser.parseDef()
+func (parser *Parser) Parse() Node {
+	return parser.parseDef()
 }
 
 func (parser *Parser) parseDef() DefNode {
@@ -185,7 +188,7 @@ func (parser *Parser) peekOffset(tokenType TokenType, offset int) bool {
 	return parser.tokens[offset].Type == tokenType
 }
 
-func (parser *Parser) parseExpr() BodyNode {
+func (parser *Parser) parseExpr() Node {
 	if parser.peek(INTEGER) {
 		return parser.parseInt()
 	}
@@ -211,8 +214,8 @@ func (parser *Parser) parseCall() BodyFnCall {
 	}
 }
 
-func (parser *Parser) parseArgExprs() []BodyNode {
-	argExprs := []BodyNode{}
+func (parser *Parser) parseArgExprs() []Node {
+	argExprs := []Node{}
 	parser.consume(OPAREN)
 
 	if !parser.peek(CPAREN) {
@@ -230,4 +233,23 @@ func (parser *Parser) parseArgExprs() []BodyNode {
 
 func (parser *Parser) parseVarRef() BodyVarRef {
 	return BodyVarRef(parser.consume(IDENTIFIER).Value)
+}
+
+func GenerateCode(node Node) string {
+	switch val := node.(type) {
+	case DefNode:
+		return fmt.Sprintf(`function %s(%s) { return %s }`, val.Name, strings.Join(val.ArgNames, ","), GenerateCode(val.Body))
+	case BodyFnCall:
+		args := make([]string, len(val.ArgExprs))
+		for i, expr := range val.ArgExprs {
+			args[i] = GenerateCode(expr)
+		}
+		return fmt.Sprintf("%s(%s)", val.Name, strings.Join(args, ","))
+	case BodyInt:
+		return fmt.Sprint(val)
+	case BodyVarRef:
+		return string(val)
+	default:
+		panic(fmt.Sprintf("unknown type %v", reflect.TypeOf(val)))
+	}
 }
