@@ -98,8 +98,6 @@ func (tkz *Tokenizer) Tokenize() (tokens []Token) {
 		tkz.code = strings.TrimSpace(tkz.code)
 		tokens = append(tokens, token)
 	}
-
-	return
 }
 
 func (tkz *Tokenizer) tokenizeOne() (Token, bool) {
