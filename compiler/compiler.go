@@ -85,7 +85,7 @@ var tokenTypes = []TokenType{
 }
 
 func (tkz *Tokenizer) Tokenize() (tokens []Token) {
-	for i := 0; i < 100; i++ {
+	for {
 		isCodeEmpty := len(strings.TrimSpace(tkz.code)) == 0
 		if isCodeEmpty {
 			return
